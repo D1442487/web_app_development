@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center pt-5 animate__animated animate__tada">
+    <div class="col-md-6 text-center">
+        <div class="glass-card py-5 shadow-lg">
+            <h1 class="display-1 text-success mb-3"><i class="bi bi-check-circle-fill"></i></h1>
+            <h2 class="fw-bold mb-3">太棒了，報名成功！</h2>
+            <p class="text-dark fs-5 mb-4 border-bottom pb-4">您已經成功取得 **{{ event.name }}** 的入場資格。</p>
+            
+            <div class="alert alert-light text-dark text-start mx-auto shadow-sm pb-4" style="max-width: 380px; border-radius: 15px;">
+                <h6 class="fw-bold text-center mb-3 pt-2 text-danger"><i class="bi bi-bookmark-star-fill"></i> 活動摘要截圖留存區</h6>
+                <ul class="list-unstyled mb-0 px-3">
+                    <li class="mb-3"><strong>📍 活動名稱</strong><br><span class="fs-5">{{ event.name }}</span></li>
+                    <li class="mb-3"><strong>🕒 活動時間</strong><br><span class="fs-5">{{ event.event_date.strftime('%Y-%m-%d %H:%M') }}</span></li>
+                    <li><strong>🏫 活動地點</strong><br><span class="fs-5">{{ event.location }}</span></li>
+                </ul>
+            </div>
+            
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-dark btn-lg mt-4 rounded-pill px-5 fw-bold shadow-sm">返回活動首頁</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

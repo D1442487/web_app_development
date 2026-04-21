@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center mb-5 animate__animated animate__fadeInDown">
+    <h1 class="fw-bold text-dark text-shadow" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">探索最新校園活動</h1>
+    <p class="text-dark fs-5">快速報名，抓住充實大學生活的每個絕佳機會！</p>
+</div>
+
+<div class="row g-4 animate__animated animate__fadeInUp">
+    {% for stat in event_stats %}
+    <div class="col-md-6 col-lg-4">
+        <div class="glass-card h-100 d-flex flex-column">
+            <h3 class="fw-bold">{{ stat.event.name }}</h3>
+            <p class="text-muted mb-2 fw-bold"><i class="bi bi-geo-alt-fill text-danger"></i> {{ stat.event.location }}</p>
+            <p class="text-muted"><i class="bi bi-calendar-event text-primary"></i> {{ stat.event.event_date.strftime('%Y-%m-%d %H:%M') }}</p>
+            <p class="mb-4 text-secondary">{{ stat.event.description | truncate(60) }}</p>
+            
+            <div class="mt-auto">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="badge {{ 'bg-danger' if stat.is_full else 'bg-success' }} px-3 py-2 rounded-pill fs-6 shadow-sm">
+                        {{ '目前已額滿' if stat.is_full else '熱烈報名中' }}
+                    </span>
+                    <span class="fw-bold fs-5" style="color: #444;">{{ stat.current_count }} / {{ stat.event.capacity_limit }}</span>
+                </div>
+                
+                <a href="{{ url_for('main.event_detail', event_id=stat.event.id) }}" 
+                   class="btn btn-premium w-100 d-block text-center mt-2"
+                   {% if stat.is_full %} style="pointer-events: none; opacity: 0.6; filter: grayscale(1);" {% endif %}>
+                    {{ '查看細節 (停招)' if stat.is_full else '查看詳細與報名' }}
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5">
+        <div class="glass-card d-inline-block py-5 px-5 mx-auto">
+            <h3 class="text-dark fw-bold mb-3">目前尚無開放中的活動喔 😢</h3>
+            <p class="text-muted">主辦方籌備中，敬請期待！</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

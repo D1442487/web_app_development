@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center animate__animated animate__zoomIn">
+    <div class="col-lg-8">
+        <!-- 頂部活動資訊卡 -->
+        <div class="glass-card mb-4 pb-3">
+            <h1 class="fw-bold mb-3">{{ event.name }}</h1>
+            <div class="d-flex flex-wrap gap-4 mb-4 border-bottom pb-4">
+                <span class="fs-5 text-dark"><strong class="text-danger"><i class="bi bi-clock-fill"></i> 時間：</strong> {{ event.event_date.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span class="fs-5 text-dark"><strong class="text-danger"><i class="bi bi-geo-alt-fill"></i> 地點：</strong> {{ event.location }}</span>
+            </div>
+            
+            <h5 class="fw-bold text-secondary border-start border-4 border-danger ps-2 mb-3">活動介紹與注意事項</h5>
+            <p style="white-space: pre-line; line-height: 1.8;" class="text-dark fs-5">{{ event.description }}</p>
+        </div>
+
+        <!-- 報名表單卡 -->
+        <div class="glass-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold mb-0">📝 填寫報名表單</h4>
+                <div class="bg-white px-3 py-1 rounded-pill fw-bold border shadow-sm">
+                    目前進度： <span class="text-danger">{{ current_count }}</span> / {{ event.capacity_limit }}
+                </div>
+            </div>
+            
+            {% if is_full %}
+                <div class="alert alert-danger rounded-4 text-center py-4 fs-5 fw-bold shadow-sm">
+                    ⚠️ 很抱歉，本活動報名人數已達上限，停止受理報名！
+                </div>
+            {% else %}
+                <form action="{{ url_for('main.register', event_id=event.id) }}" method="POST">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">學校與系級 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-lg" name="department_grade" required placeholder="例如：資管系三年級">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">學號 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-lg" name="student_id" required placeholder="請填寫學號">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">你的姓名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-lg" name="student_name" required placeholder="真實姓名">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">聯絡電話 <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control form-control-lg" name="phone" required placeholder="09xx-xxx-xxx">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">電子信箱 <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control form-control-lg" name="email" required placeholder="example@mail.edu.tw">
+                            <div class="form-text">我們絕不會將您的信箱外流。</div>
+                        </div>
+                        <div class="col-12 mt-5 text-center">
+                            <button type="submit" class="btn btn-premium btn-lg w-100 py-3 shadow">🚀 立即送出報名</button>
+                            <small class="d-block mt-3 fw-bold" style="color: #555;">按下送出即代表您同意主辦方收集上述聯絡資料供行前通知使用。</small>
+                        </div>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

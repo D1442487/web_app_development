@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 
-# 初始化 db，稍後會在 app.__init__.py 註冊給 Flask App 使用
+# 初始化 db，會在 app.py 中註冊給 Flask App 使用
 db = SQLAlchemy()
 
 class Event(db.Model):
@@ -15,7 +15,7 @@ class Event(db.Model):
     capacity_limit = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # 設置 Relationship，方便透過 Event.registrations 取得所有報名者
+    # cascade 確保當活動刪除時，底下所有的報名紀錄自動刪除
     registrations = db.relationship('Registration', backref='event', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -23,21 +23,62 @@ class Event(db.Model):
         
     @classmethod
     def create(cls, **kwargs):
-        """新增活動"""
-        event = cls(**kwargs)
-        db.session.add(event)
-        db.session.commit()
-        return event
+        """新增活動一筆記錄"""
+        try:
+            event = cls(**kwargs)
+            db.session.add(event)
+            db.session.commit()
+            return event
+        except Exception as e:
+            db.session.rollback()
+            print(f"[Model Error] Failed to create Event: {e}")
+            return None
 
     @classmethod
     def get_by_id(cls, event_id):
-        """根據 ID 取得活動"""
-        return cls.query.get(event_id)
+        """取得單筆記錄"""
+        try:
+            return cls.query.get(event_id)
+        except Exception as e:
+            print(f"[Model Error] Failed to get Event {event_id}: {e}")
+            return None
 
     @classmethod
     def get_all(cls):
-        """取得所有活動，以日期排序"""
-        return cls.query.order_by(cls.event_date.desc()).all()
+        """取得所有記錄"""
+        try:
+            return cls.query.order_by(cls.event_date.desc()).all()
+        except Exception as e:
+            print(f"[Model Error] Failed to get all Events: {e}")
+            return []
+
+    def update(self, **kwargs):
+        """更新該筆記錄"""
+        try:
+            for key, value in kwargs.items():
+                if hasattr(self, key):
+                    setattr(self, key, value)
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"[Model Error] Failed to update Event {self.id}: {e}")
+            return False
+
+    @classmethod
+    def delete(cls, event_id):
+        """根據 ID 刪除記錄"""
+        try:
+            event = cls.query.get(event_id)
+            if event:
+                db.session.delete(event)
+                db.session.commit()
+                return True
+            return False
+        except Exception as e:
+            db.session.rollback()
+            print(f"[Model Error] Failed to delete Event {event_id}: {e}")
+            return False
 
 
 class Registration(db.Model):
@@ -57,18 +98,46 @@ class Registration(db.Model):
         
     @classmethod
     def create(cls, **kwargs):
-        """新增報名紀錄並寫入資料庫"""
-        reg = cls(**kwargs)
-        db.session.add(reg)
-        db.session.commit()
-        return reg
+        """新增一筆學生的報名記錄"""
+        try:
+            reg = cls(**kwargs)
+            db.session.add(reg)
+            db.session.commit()
+            return reg
+        except Exception as e:
+            db.session.rollback()
+            print(f"[Model Error] Failed to create Registration: {e}")
+            return None
 
     @classmethod
     def get_by_event(cls, event_id):
-        """取得單一活動的所有報名名單"""
-        return cls.query.filter_by(event_id=event_id).all()
+        """取得目標活動的所有報名記錄，並以報名時間排序"""
+        try:
+            return cls.query.filter_by(event_id=event_id).order_by(cls.created_at.asc()).all()
+        except Exception as e:
+            print(f"[Model Error] Failed to get Registrations for event {event_id}: {e}")
+            return []
 
     @classmethod
     def get_registration_count(cls, event_id):
-        """統計目前此活動的報名人數，用於防呆"""
-        return cls.query.filter_by(event_id=event_id).count()
+        """單獨統計目前該活動已報名人數 (防呆用)"""
+        try:
+            return cls.query.filter_by(event_id=event_id).count()
+        except Exception as e:
+            print(f"[Model Error] Failed to get Registration count for event {event_id}: {e}")
+            return 0
+
+    @classmethod
+    def delete(cls, reg_id):
+        """根據 ID 取消某個學生的報名紀錄"""
+        try:
+            reg = cls.query.get(reg_id)
+            if reg:
+                db.session.delete(reg)
+                db.session.commit()
+                return True
+            return False
+        except Exception as e:
+            db.session.rollback()
+            print(f"[Model Error] Failed to delete Registration {reg_id}: {e}")
+            return False
