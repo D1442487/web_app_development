@@ -1,79 +1,94 @@
-# 流程圖設計文件：食譜管理系統
+# 流程圖文件 (FLOWCHART)：大學生校園活動報名系統
 
-本文件根據產品需求文件 (PRD) 與系統架構文件，視覺化使用者在食譜管理系統中的操作流程、系統背後的處理步驟，以及功能與路由的對照表。
+本文件基於 PRD 與系統架構設計，視覺化描述「使用者（學生與主辦方）的操作路徑」以及「系統內部的資料互動順序」。
 
-## 1. 使用者流程圖（User Flow）
+---
 
-以下流程圖說明當使用者開啟網頁後，可以執行的各項功能及頁面轉換路徑：
+## 1. 使用者流程圖 (User Flow)
+
+此流程圖區分了「前台（學生）」與「後台（主辦方管理者）」的操作動線，涵蓋了活動報名的建立與送出流程。
 
 ```mermaid
 flowchart LR
-    A([使用者開啟網站]) --> B[首頁 - 食譜列表]
-    
-    B --> C{選擇欲執行的功能}
-    
-    %% 新增食譜路線
-    C -->|點擊「新增食譜」| D[填寫新增表單頁面]
-    D -->|送出表單| B
-    
-    %% 搜尋/篩選路線
-    C -->|輸入「關鍵字 / 食材」| E[呈現篩選後的列表]
-    E --> C
-    
-    %% 查看與編輯/刪除路線
-    C -->|點擊某個「食譜項目」| F[食譜明細頁面]
-    F --> G{在明細頁中選擇操作}
-    
-    G -->|返回| B
-    G -->|點擊「編輯食譜」| H[填寫編輯表單頁面]
-    H -->|送出表單| F
-    G -->|點擊「刪除食譜」| I[確認並刪除]
-    I -->|刪除成功| B
+    %% 角色節點設定
+    subgraph Admin_Flow [主辦方後台流程]
+        A1([主辦方登入系統]) --> A2[後台控制中心 Admin Dashboard]
+        A2 --> A3{選擇管理項目}
+        
+        A3 -->|新增| A4[填寫活動資訊 & 人數上限]
+        A4 --> A5[產生活動專屬報名連結]
+        
+        A3 -->|檢視活動| A6[檢視單一活動狀態與報名清單]
+        A6 --> A7[匯出名單 Excel/CSV]
+        A6 --> A8[手動提早關閉報名]
+    end
+
+    subgraph User_Flow [學生前台報名流程]
+        U1([學生點擊報名連結]) --> U2[進入活動詳情頁面]
+        U2 --> U3{檢查是否額滿？}
+        
+        U3 -->|是 (已達人數上限)| U4[報名按鈕反灰]
+        U4 --> U5[顯示「已額滿」提示]
+        
+        U3 -->|否 (尚有名額)| U6[填寫報名資料]
+        U6 --> U7[送出表單 (POST)]
+        U7 --> U8[顯示「報名成功」提示頁面]
+    end
 ```
 
-## 2. 系統序列圖（Sequence Diagram）
+---
 
-以下序列圖以核心功能**「新增食譜」**為例，展示從使用者介面送出資料到成功寫入資料庫並重導向的完整過程：
+## 2. 系統序列圖 (System Sequence Diagram)
+
+以下序列圖描述最核心的商業邏輯：**「學生填寫表單並送出報名」** 到 **「資料存入資料庫」** 的完整系統防呆與寫入流程。
 
 ```mermaid
 sequenceDiagram
-    actor User as 使用者
-    participant Browser as 瀏覽器 (模板渲染)
-    participant Flask Route as 路由 (Controller)
-    participant Model as 邏輯模型 (Model)
-    participant DB as SQLite 資料庫
+    autonumber
+    actor Student as 學生
+    participant Browser as 瀏覽器 (Front-End)
+    participant Flask as Flask Controller
+    participant Model as SQLAlchemy (Model)
+    participant DB as SQLite DB
 
-    User->>Browser: 在表單頁面填妥食譜資訊並點擊送出
-    Browser->>Flask Route: 發送 POST /recipes 請求 (攜帶表單資料)
+    Student->>Browser: 填寫資料(學號/姓名/電話)並點擊「送出」
+    Browser->>Flask: POST /event/{id}/register (傳送表單資料)
     
-    Note over Flask Route, DB: 開始處理新增邏輯
+    %% 後端嚴謹驗證與額滿防呆
+    Flask->>Model: 查詢目前已報名人數 (COUNT)
+    Model->>DB: SELECT COUNT(*) FROM Registration WHERE event_id = ?
+    DB-->>Model: 回傳目前人數
+    Model-->>Flask: 目前報名人數 (如: 50)
     
-    Flask Route->>Model: 呼叫 Recipe.create(data) 傳入解析後的資料
-    Model->>DB: 執行 SQL INSERT INTO recipes ... 
-    DB-->>Model: 回傳寫入成功訊息
-    Model-->>Flask Route: 回傳新建立的 Recipe 物件
+    Flask->>Flask: 比對「目前人數」是否 >= 「人數上限」
     
-    Note over Flask Route, Browser: 處理畫面重導向
-    
-    Flask Route-->>Browser: 回傳 302 Redirect 至首頁 (食譜列表)
-    Browser->>Flask Route: 發送 GET / 請求
-    Flask Route->>Model: 取得最新所有食譜列表
-    Model->>DB: 執行 SELECT * FROM recipes
-    DB-->>Model: 回傳新列資料
-    Model-->>Flask Route: 列表資料
-    Flask Route-->>Browser: 使用最新資料重新渲染 index.html (首頁)
+    alt 已額滿
+        Flask-->>Browser: 回傳 403 Forbidden 或是重導回報名頁帶有錯誤提示
+        Browser-->>Student: 顯示「很抱歉，活動剛好額滿囉！」
+    else 尚有餘額
+        Flask->>Model: 建立 Registration 物件
+        Model->>DB: INSERT INTO Registration (姓名, 學號,...)
+        DB-->>Model: 確認新增成功
+        Model-->>Flask: 報名紀錄儲存成功
+        
+        Flask-->>Browser: 302 Redirect 至「報名成功」頁面
+        Browser-->>Student: 顯示「報名成功！」結果頁
+    end
 ```
 
-## 3. 功能清單對照表
+---
 
-對應上述流程與 PRD 需求，以下為系統功能對應的 URL 路徑與 HTTP 方法整理，提供後續 API/路由設計的參考：
+## 3. 功能清單與 API 對照表
 
-| 功能項目說明 | HTTP 方法 | 預計對應的 URL 路徑 | View (Jinja2) | 備註 |
-| --- | :---: | --- | --- | --- |
-| **首頁 / 所有食譜總覽** | `GET` | `/` 或 `/recipes` | `index.html` | 可結合查詢參數 `?q=關鍵字` 處理搜尋與食材推薦功能。 |
-| **進入新增食譜表單頁** | `GET` | `/recipes/new` | `form.html` | 呈現空白的輸入表單。 |
-| **提交新增食譜資料** | `POST` | `/recipes` | *(處理無畫面)* | 處理完後 302 重導向回首頁。 |
-| **查看單一食譜明細** | `GET` | `/recipes/<id>` | `show.html` | 顯示特定 ID 的食譜完整步驟與內容。 |
-| **進入編輯食譜表單頁** | `GET` | `/recipes/<id>/edit` | `form.html` | 呈現帶有原始資料的編輯表單。 |
-| **提交更新的食譜資料** | `POST` | `/recipes/<id>/update` | *(處理無畫面)* | 使用 HTML form 故用 POST，更新完成後重導回明細頁。 |
-| **確定刪除食譜** | `POST` | `/recipes/<id>/delete` | *(處理無畫面)* | 使用 form 觸發 POST，刪除完成後重導回首頁。 |
+以下為本 MVP 專案的重要頁面與路徑（Route）規劃清單，以對應上述的流程圖：
+
+| 功能區域 | 操作行為 | URL 路徑 (Routes) | HTTP Method | 說明 |
+| :--- | :--- | :--- | :---: | :--- |
+| **前台 (學生)** | 活動列表 | `/` | GET | 若有需要，展示列出所有開放中活動 |
+| **前台 (學生)** | 活動詳情/報名表 | `/event/<int:event_id>` | GET | 學生填寫報名資料的頁面 (含剩餘人數顯示) |
+| **前台 (學生)** | 送出報名資料 | `/event/<int:event_id>/register` | POST | 接收表單、檢查額滿狀態，成功則寫入 DB |
+| **前台 (學生)** | 報名成功頁面 | `/event/<int:event_id>/success` | GET | 顯示大大的成功提示供學生截圖 |
+| **後台 (主辦)** | 中央控制台 | `/admin` | GET | 列出該主辦方的所有活動 |
+| **後台 (主辦)** | 建立新活動 | `/admin/event/new` | GET / POST | 填寫/送出活動基本資料與人數上限 |
+| **後台 (主辦)** | 檢視報名清單 | `/admin/event/<int:event_id>/registrations` | GET | 表格化列出所有報名學生的詳細資料 |
+| **後台 (主辦)** | 匯出報名名單 | `/admin/event/<int:event_id>/export` | GET | 觸發下載 CSV/Excel 檔案 |
